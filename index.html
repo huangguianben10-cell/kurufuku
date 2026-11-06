@@ -87,6 +87,31 @@
   .cz .pr small{font-size:11px;color:var(--sub);font-weight:400}
   .cz .menu{font-size:13px;color:var(--sub);margin-top:6px;line-height:1.7}
   .cz.none .ttl{font-size:16px}
+  .pp{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+  .pp:first-child{padding-top:0}
+  .pp .pl b{font-size:18px}
+  .pp .pl small{display:block;font-size:12px;color:var(--sub);line-height:1.3}
+  .pp .stepper button:disabled{color:#ccc}
+  .pptotal{text-align:right;font-weight:700;margin-top:8px;font-size:15px}
+  .cc{position:relative;display:block;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-top:5px solid var(--c);border-radius:14px;padding:12px 14px;cursor:pointer;color:var(--text);font-family:inherit}
+  .cc.on{border-color:var(--c);box-shadow:inset 0 0 0 2px var(--c),0 4px 14px rgba(0,0,0,.08);background:var(--soft)}
+  .cc .hd2{display:flex;gap:12px;align-items:center}
+  .cc .mk{flex:0 0 50px;height:50px;border-radius:50%;border:2.5px solid var(--c);color:var(--c);font-family:"Noto Serif JP",serif;font-weight:700;font-size:26px;line-height:44px;text-align:center;background:#fff}
+  .cc .tt{flex:1;min-width:0}
+  .cc .nm2{font-family:"Noto Serif JP",serif;font-weight:700;font-size:21px;line-height:1.2}
+  .cc .nm2 small{font-size:11px;color:var(--sub);font-weight:400;margin-left:3px}
+  .cc .sb{font-size:14px;font-weight:700}
+  .cc .pr2{text-align:right;font-family:"Noto Serif JP",serif;font-weight:700;font-size:21px;line-height:1.1;white-space:nowrap}
+  .cc .pr2 small{display:block;font-family:inherit;font-size:10.5px;color:var(--sub);font-weight:400}
+  .cc .pill{display:inline-block;margin-top:8px;font-size:12px;color:#fff;background:var(--c);border-radius:999px;padding:1px 10px}
+  .cc .cnt{font-size:12px;color:var(--c);font-weight:700;margin-left:6px}
+  .cc .menu{margin-top:8px;font-size:13px;color:#55555a;line-height:1.75}
+  .cc .menu b{color:var(--c)}
+  .cc .chk{position:absolute;top:10px;right:12px;width:24px;height:24px;border-radius:50%;background:var(--c);color:#fff;font-size:14px;line-height:24px;text-align:center;display:none}
+  .cc.on .chk{display:block} .cc.on .pr2{margin-right:28px}
+  .cc.none{--c:#9a9488;--soft:#f3f1ec}
+  .qnote{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
+  .qnote b{font-size:16px}
   .btn{display:block;width:100%;border:0;border-radius:12px;padding:15px;font-size:17px;font-weight:700;cursor:pointer;margin-top:14px}
   .btn.main{background:var(--shu);color:#fff}
   .btn.main:disabled{background:#d8c7c2}
@@ -176,20 +201,7 @@
     <h2>お料理<span style="font-size:12px;color:var(--shu);margin-left:8px;font-family:inherit">必須</span></h2>
     <div class="note" style="margin:-4px 0 10px">コースは仕入れの都合上、事前のご予約をお願いしております。<br>お支払いは現金のみとなります。</div>
     <div class="courses" id="courses"></div>
-    <div class="card hide" id="qtyBox">
-      <div class="course">
-        <div>
-          <div class="nm" id="qtyName"></div>
-          <div class="note" style="margin-top:0">何人前ご用意しますか？</div>
-        </div>
-        <div class="stepper">
-          <button type="button" id="cMinus" aria-label="減らす">−</button>
-          <span id="cVal"></span>
-          <button type="button" id="cPlus" aria-label="増やす">＋</button>
-        </div>
-      </div>
-      <div class="note">人数より少なくした場合、残りの方はご来店時にメニューからお選びいただけます。</div>
-    </div>
+    <div class="qnote hide" id="qtyBox"></div>
 
     <h2>ご予約者さま</h2>
     <div class="card">
@@ -256,7 +268,8 @@
 <script>
 (function(){
   var INIT = null, AV = null;
-  var S = { people:0, date:'', slotId:'', seatType:'', course:0, courseId:'', month:'', referral:'' };
+  var S = { people:0, adults:0, children:0, date:'', slotId:'', seatType:'', course:0, courseId:'', month:'', referral:'' };
+  function peopleText(p,c){ return p+'名様'+(c?'（大人'+(p-c)+'名・子供'+c+'名）':''); }
   var DOW = ['日','月','火','水','木','金','土'];
 
   function $(id){ return document.getElementById(id); }
@@ -316,17 +329,23 @@
 
   /* ---- STEP1 ---- */
   function renderPeople(){
-    var h='';
-    for(var i=1;i<=INIT.webMaxPeople;i++) h+='<button class="chip'+(S.people===i?' on':'')+'" data-p="'+i+'">'+i+'名</button>';
-    $('people').innerHTML=h;
+    var full=S.adults+S.children>=INIT.webMaxPeople;
+    function row(label,sub,key,v){ return '<div class="pp"><div class="pl"><b>'+label+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</div><div class="stepper"><button type="button" data-k="'+key+'" data-v="-1"'+(v<=0?' disabled':'')+' aria-label="減らす">−</button><span>'+v+'名</span><button type="button" data-k="'+key+'" data-v="1"'+(full?' disabled':'')+' aria-label="増やす">＋</button></div></div>'; }
+    $('people').style.display='block';
+    $('people').innerHTML=row('大人','','adults',S.adults)+row('子供','小学生以下','children',S.children)+
+      '<div class="pptotal">'+(S.adults+S.children>0?'合計 '+(S.adults+S.children)+'名様':'人数を選んでください')+'</div>'+
+      (S.adults<1&&S.children>0?'<div class="err" style="margin-bottom:0">大人の方を1名以上お選びください。</div>':'');
     $('peopleNote').innerHTML=(INIT.webMaxPeople+1)+'名様以上のご予約は<a href="tel:'+esc(INIT.shop.tel)+'">お電話</a>にてお願いいたします。<br>テーブル席は'+INIT.seats.tableMin+'〜'+INIT.seats.tableMax+'名様（1卓）、カウンター席は1名様から。';
   }
   $('people').addEventListener('click',function(e){
-    var b=e.target.closest('[data-p]'); if(!b) return;
-    S.people=+b.getAttribute('data-p'); S.date=''; S.slotId=''; S.seatType='';
-    if(S.course>S.people) S.course=S.people;
-    renderPeople(); $('calBox').classList.remove('hide'); renderCal();
-    setTimeout(function(){ $('calBox').scrollIntoView({behavior:'smooth',block:'start'}); },50);
+    var b=e.target.closest('[data-k]'); if(!b||b.disabled) return;
+    var k=b.getAttribute('data-k'); S[k]=Math.max(0,S[k]+(+b.getAttribute('data-v')));
+    if(S.adults+S.children>INIT.webMaxPeople) S[k]--;
+    S.people=S.adults+S.children; S.date=''; S.slotId=''; S.seatType='';
+    renderPeople();
+    var wasHidden=$('calBox').classList.contains('hide');
+    if(S.adults>=1){ $('calBox').classList.remove('hide'); renderCal(); if(wasHidden) setTimeout(function(){ $('calBox').scrollIntoView({behavior:'smooth',block:'start'}); },50); }
+    else $('calBox').classList.add('hide');
   });
 
   function renderCal(){
@@ -358,7 +377,7 @@
 
   /* ---- STEP2 ---- */
   function renderSlots(){
-    $('s2title').textContent=jpDate(S.date)+'・'+S.people+'名様';
+    $('s2title').textContent=jpDate(S.date)+'・'+peopleText(S.people,S.children);
     var d=AV.days[S.date], h='';
     INIT.slots.forEach(function(s){
       var f=d.slots[s.id], opts=f.open?seatOptions(f,S.people):[];
@@ -385,17 +404,27 @@
   /* ---- STEP3 ---- */
   function courseById(id){ return INIT.courses.filter(function(c){return c.id===id;})[0]; }
   function courseLabel(){ var c=courseById(S.courseId); return c? (c.mark?c.mark+' ':'')+c.name : INIT.courseNone; }
+  function softColor(hex){ var n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255; return 'rgb('+[r,g,b].map(function(x){return Math.round(x+(255-x)*.92);}).join(',')+')'; }
   function renderCourse(){
-    var h=INIT.courses.map(function(c){ return '<button type="button" class="cz'+(S.courseId===c.id?' on':'')+'" data-c="'+c.id+'"><div class="hd"><div class="ttl"><b>'+esc(c.mark)+'</b>'+esc(c.name)+'</div><div class="pr">'+Number(c.price).toLocaleString()+'円<small>（税込）</small></div></div><div class="menu">'+c.items.map(esc).join('・')+'</div></button>'; }).join('');
-    h+='<button type="button" class="cz none'+(S.courseId==='none'?' on':'')+'" data-c="none"><div class="ttl">'+esc(INIT.courseNone)+'</div><div class="menu">コースにせず、ご来店時にメニューからお選びいただけます。</div></button>';
+    var anyHl=false;
+    var h=INIT.courses.map(function(c){
+      var hl=c.hl||[]; if(hl.length) anyHl=true; var col=c.color||'#1f2a44';
+      return '<button type="button" class="cc'+(S.courseId===c.id?' on':'')+'" data-c="'+c.id+'" style="--c:'+col+';--soft:'+softColor(col)+'"><span class="chk">✓</span>'+
+        '<div class="hd2">'+(c.tier?'<div class="mk">'+esc(c.tier)+'</div>':'')+'<div class="tt"><div class="nm2">'+esc(c.mark||'')+(c.reading?'<small>'+esc(c.reading)+'</small>':'')+'</div><div class="sb">'+esc(c.name)+'</div></div>'+
+        '<div class="pr2">'+Number(c.price).toLocaleString()+'円<small>税込・1名様</small></div></div>'+
+        (c.catch?'<span class="pill">'+esc(c.catch)+'</span>':'')+'<span class="cnt">全'+c.items.length+'品</span>'+
+        '<div class="menu">'+c.items.map(function(it){ return hl.indexOf(it)>=0?'<b>◆'+esc(it)+'</b>':esc(it); }).join('・')+'</div></button>';
+    }).join('');
+    h+='<button type="button" class="cc none'+(S.courseId==='none'?' on':'')+'" data-c="none"><span class="chk">✓</span><div class="nm2" style="font-size:17px">'+esc(INIT.courseNone)+'</div><div class="menu" style="margin-top:2px">コースにせず、ご来店時にメニューからお選びいただけます。</div></button>';
+    if(anyHl) h+='<div class="note" style="margin-top:-2px">◆ は梅コースにはない品です</div>';
     $('courses').innerHTML=h;
     var c=courseById(S.courseId);
+    S.course=c?S.adults:0;
     $('qtyBox').classList.toggle('hide',!c);
-    if(c){ if(S.course<1||S.course>S.people) S.course=S.people; $('qtyName').textContent=(c.mark?c.mark+' ':'')+c.name; $('cVal').textContent=S.course+'人前'; }
+    if(c) $('qtyBox').innerHTML='<b>'+esc(courseLabel())+'</b>を<b>大人'+S.adults+'名様分（'+S.course+'人前）</b>ご用意します。'+
+      '<div class="note" style="margin-top:4px">コースはご予約の皆さま同じ内容でのご用意となります。'+(S.children?'<br>お子様（小学生以下）のお料理は、ご来店時にメニューからお選びいただけます。':'')+'</div>';
   }
-  $('courses').addEventListener('click',function(e){ var b=e.target.closest('[data-c]'); if(!b) return; var id=b.getAttribute('data-c'); if(S.courseId!==id){ S.courseId=id; S.course=(id==='none')?0:S.people; } renderCourse(); });
-  $('cMinus').onclick=function(){ if(S.course>1){S.course--;renderCourse();} };
-  $('cPlus').onclick=function(){ if(S.course<S.people){S.course++;renderCourse();} };
+  $('courses').addEventListener('click',function(e){ var b=e.target.closest('[data-c]'); if(!b) return; S.courseId=b.getAttribute('data-c'); renderCourse(); });
   function renderRefs(){
     $('refs').innerHTML=INIT.referralOptions.map(function(o){ return '<button type="button" class="chip'+(S.referral===o?' on':'')+'" data-r="'+esc(o)+'">'+esc(o)+'</button>'; }).join('');
   }
@@ -405,7 +434,7 @@
   function summaryRows(o){
     return '<tr><th>日付</th><td>'+jpDate(o.date)+'</td></tr>'+
       '<tr><th>時間</th><td>'+esc(o.slot)+loText(o.slot)+'</td></tr>'+
-      '<tr><th>人数</th><td>'+o.people+'名様</td></tr>'+
+      '<tr><th>人数</th><td>'+peopleText(o.people,o.children)+'</td></tr>'+
       '<tr><th>お席</th><td>'+esc(o.seat)+'席</td></tr>'+
       '<tr><th>コース</th><td>'+esc(o.courseName)+(o.course?'（'+o.course+'人前）':'')+'</td></tr>'+
       '<tr><th>お名前</th><td>'+esc(o.name)+' 様</td></tr>'+
@@ -423,7 +452,7 @@
     $('err3').textContent=err; $('err3').classList.toggle('hide',!err);
     if(err) return;
     $('tel').value=tel;
-    $('sumTable').innerHTML=summaryRows({date:S.date,slot:slotLabel(),people:S.people,seat:S.seatType,course:S.course,courseName:courseLabel(),name:name,tel:tel,referral:S.referral,note:$('note').value.trim()});
+    $('sumTable').innerHTML=summaryRows({date:S.date,slot:slotLabel(),people:S.people,children:S.children,seat:S.seatType,course:S.course,courseName:courseLabel(),name:name,tel:tel,referral:S.referral,note:$('note').value.trim()});
     $('err4').classList.add('hide'); show(4);
   };
 
@@ -432,7 +461,7 @@
   $('submit').onclick=function(){
     if(sending) return; sending=true; $('submit').disabled=true;
     loading(true,'予約を送信しています…');
-    call('createReservation',{date:S.date,slotId:S.slotId,people:S.people,seatType:S.seatType,course:S.course,courseId:S.courseId,
+    call('createReservation',{date:S.date,slotId:S.slotId,people:S.people,adults:S.adults,children:S.children,seatType:S.seatType,course:S.course,courseId:S.courseId,
       name:$('name').value.trim(),tel:$('tel').value,note:$('note').value.trim(),referral:S.referral})
     .then(function(r){
       if(!r.ok){
@@ -441,7 +470,7 @@
         return;
       }
       $('doneId').textContent=r.id;
-      $('doneTable').innerHTML=summaryRows({date:r.date,slot:r.slotLabel,people:r.people,seat:r.seatType,course:r.course,courseName:r.courseName,name:r.name,tel:r.tel,referral:r.referral,note:''});
+      $('doneTable').innerHTML=summaryRows({date:r.date,slot:r.slotLabel,people:r.people,children:r.children,seat:r.seatType,course:r.course,courseName:r.courseName,name:r.name,tel:r.tel,referral:r.referral,note:''});
       show(5);
     })
     .catch(function(){ $('err4').textContent='通信エラーが発生しました。電波の良い所でもう一度お試しいただくか、お電話ください。'; $('err4').classList.remove('hide'); })
